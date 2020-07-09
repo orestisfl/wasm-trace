@@ -22,7 +22,7 @@ const Wasi = require("@wasmer/wasi");
 const Node = require("@wasmer/wasi/lib/bindings/node");
 const Binaryen = require("binaryen");
 
-const csvTraceFn = ".wasm-trace.csv";
+const tmp = require('tmp');
 
 /*
  * Arguments
@@ -166,6 +166,7 @@ function log(msg) {
   binary = await WasmTransformer.lowerI64Imports(binary);
   */
 
+  const csvTraceFn = tmp.tmpNameSync();
   const csv_output = fs.createWriteStream(csvTraceFn);
   await execute(binary, csv_output, argv)
   csv_output.end();
@@ -329,7 +330,7 @@ async function execute(binary, trace, opts)
     });
 
     const { instance } = await WebAssembly.instantiate(binary,
-      Object.assign({}, imports, { wasi_unstable: wasi.wasiImport })
+      Object.assign({}, imports, { wasi_unstable: wasi.wasiImport, wasi_snapshot_preview1: wasi.wasiImport })
     );
 
     if (opts.invoke) {
