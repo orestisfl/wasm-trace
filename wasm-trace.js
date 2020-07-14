@@ -166,10 +166,10 @@ function log(msg) {
   binary = await WasmTransformer.lowerI64Imports(binary);
   */
 
-  const csvTraceFn = tmp.tmpNameSync();
-  const csv_output = fs.createWriteStream(csvTraceFn);
+  const csvTraceFn = tmp.tmpNameSync({prefix: '.wasm-trace', postfix: '.csv', tmpdir: './'});
+  const csv_output = fs.openSync(csvTraceFn, "w");
   await execute(binary, csv_output, argv)
-  csv_output.end();
+  fs.close(csv_output, () => {});
 
   const csv_input = fs.createReadStream(csvTraceFn);
   await post_process(binary, csv_input, argv);
@@ -281,11 +281,11 @@ async function instrument(binary, opts)
 async function execute(binary, trace, opts)
 {
   const traceGeneric = (name) => function() {
-    trace.write(name + ';' + Array.from(arguments).join(';') + '\n');
+    fs.writeSync(trace, name + ';' + Array.from(arguments).join(';') + '\n');
   }
 
   const traceRetLast = (name) => function() {
-    trace.write(name + ';' + Array.from(arguments).join(';') + '\n');
+    fs.writeSync(trace, name + ';' + Array.from(arguments).join(';') + '\n');
     return arguments[arguments.length-1];
   }
 
@@ -361,7 +361,7 @@ async function post_process(binary, csv, opts)
     fatal("Processing CSV trace file requires input of corresponding pre-instrumented wasm file")
   }
 
-  const trace = fs.createWriteStream(opts.output);
+  const trace = fs.openSync(opts.output, 'w');
   const reader = readLines(csv);
 
   function parseLine(line) {
@@ -382,7 +382,7 @@ async function post_process(binary, csv, opts)
     type = type || "";
     let prefix = id.toString().padStart(6) + ' | ' + type.padEnd(3) + ' | ' + '  '.repeat(Math.max(0, ctx.exec_depth));
 
-    trace.write(prefix + body + '\n')
+    fs.writeSync(trace, prefix + body + '\n')
   }
 
   function getFunctionName(i) {
